@@ -5,6 +5,9 @@ import android.app.ActionBar;
 import android.app.Fragment;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -31,7 +34,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 
-public class SampleImageActivity extends Activity {
+public class SampleImageActivity extends Activity implements SensorEventListener {
     /** A basic Camera preview class */
     public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
         private SurfaceHolder mHolder;
@@ -98,6 +101,12 @@ public class SampleImageActivity extends Activity {
     private Camera mCamera;
     private FileWriter mAngleLog;
     private String mCurrentPicName;
+    private SensorManager mSensorManager;
+    private long lastUpdate;
+
+    private float x_acc;
+    private float y_acc;
+    private float z_acc;
 
     private boolean checkCameraHardware(Context context) {
         if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA)){
@@ -121,10 +130,52 @@ public class SampleImageActivity extends Activity {
         }
         // Create an instance of Camera
         mCamera = getCameraInstance();
+        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        lastUpdate = System.currentTimeMillis();
 
         // Create our Preview view and set it as the content of our activity.
 
 
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            getAccelerometer(event);
+        }
+
+    }
+
+     @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
+
+    private void getAccelerometer(SensorEvent event) {
+        float[] values = event.values;
+        // Movement
+        x_acc = values[0];
+        y_acc = values[1];
+        z_acc = values[2];
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // register this class as a listener for the orientation and
+        // accelerometer sensors
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    @Override
+    protected void onPause() {
+        // unregister listener
+        super.onPause();
+        mSensorManager.unregisterListener(this);
     }
 
     public void startSampling(View view) {
@@ -171,6 +222,13 @@ public class SampleImageActivity extends Activity {
                 fos.write(data);
                 fos.close();
                 mAngleLog.write(mCurrentPicName);
+                mAngleLog.write("\t "+ x_acc+";"+y_acc+";"+z_acc+"\n");
+                mAngleLog.flush();
+
+                //get the sensor data
+
+
+
                 mAngleLog.flush();
 
             } catch (FileNotFoundException e) {
